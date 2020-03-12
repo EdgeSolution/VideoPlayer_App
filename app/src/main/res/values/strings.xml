@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AdvVideoPlayer</string>
+    <string name="switch_sharpness">(Can switch sharpness when playing in full screen)</string>
+    <string name="small_window_play">Small window play</string>
+</resources>
