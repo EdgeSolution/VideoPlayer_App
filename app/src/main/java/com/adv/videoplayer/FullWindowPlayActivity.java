@@ -1,5 +1,7 @@
 package com.adv.videoplayer;
 
+import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -20,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,10 +47,18 @@ public class FullWindowPlayActivity extends AppCompatActivity {
                     try {
                         //String command = "ps |grep mosquitto";
                         String command = "ps";
-                        if (commandIsRuning(command)) {
-                            break;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            String mosquittoIsRunning = getSystemStringProperties(FullWindowPlayActivity.this,"adv.mosquittoIsRunning","false");
+                            if (mosquittoIsRunning != null && !mosquittoIsRunning.isEmpty() && mosquittoIsRunning.equals("true")) {
+                                break;
+                            }
+                            Log.d(TAG, "isServiceRunning ...");
+                        }else {
+                            if (commandIsRuning(command)) {
+                                break;
+                            }
+                            Log.d(TAG, "ps command ...");
                         }
-                        Log.d(TAG, "ps command ...");
                         Thread.sleep(3000);
                     } catch (InterruptedException | IOException e) {
                         e.printStackTrace();
@@ -213,6 +224,29 @@ public class FullWindowPlayActivity extends AppCompatActivity {
             e.printStackTrace();
             return false;
         }
+    }
+
+    public static String getSystemStringProperties(Context context, String key, String def) throws IllegalArgumentException {
+        String ret = def;
+        try {
+            ClassLoader cl = context.getClassLoader();
+            @SuppressWarnings("rawtypes")
+            Class SystemProperties = cl.loadClass("android.os.SystemProperties");
+            @SuppressWarnings("rawtypes")
+            Class[] paramTypes = new Class[2];
+            paramTypes[0] = String.class;
+            paramTypes[1] = String.class;
+            Method get = SystemProperties.getMethod("get", paramTypes);
+            Object[] params = new Object[2];
+            params[0] = new String(key);
+            params[1] = new String(def);
+            ret = (String) get.invoke(SystemProperties, params);
+        } catch (IllegalArgumentException iAE) {
+            throw iAE;
+        } catch (Exception e) {
+            ret = def;
+        }
+        return ret;
     }
 
 }
