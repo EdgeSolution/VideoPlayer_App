@@ -47,7 +47,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
                     try {
                         //String command = "ps |grep mosquitto";
                         String command = "ps";
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                             String mosquittoIsRunning = getSystemStringProperties(FullWindowPlayActivity.this,"adv.mosquittoIsRunning","false");
                             if (mosquittoIsRunning != null && !mosquittoIsRunning.isEmpty() && mosquittoIsRunning.equals("true")) {
                                 break;

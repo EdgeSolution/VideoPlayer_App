@@ -38,6 +38,7 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
         final int NO_VIDEOS_FOUND = 2;
         final int WRONG_FUNCID = 3;
         final int PLAYLIST_IS_EMPTY = 4;
+        final int PLAY_ERROR = 5;
 
         try {
             LOG.info(TAG + " recv:  { " + topic + " [" + message + "]}");
@@ -137,6 +138,15 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                             if(duration == -1 || curPosition == -1) {
                                                 jsonObj.put("result", 1);
                                                 jsonObj.put("errcode", UNKNOWN_REASON);
+                                            }else if(duration == 0 || curPosition == 0) {
+                                                Log.d(TAG,"status: " + nvp.getCurrentState());
+                                                if(nvp.getCurrentState() == NiceVideoPlayer.STATE_ERROR) {
+                                                    jsonObj.put("result", 1);
+                                                    jsonObj.put("errcode", PLAY_ERROR);
+                                                    subJsonObj.put("videoname", videoName);
+                                                    subJsonObj.put("duration", duration);
+                                                    subJsonObj.put("curposition", curPosition);
+                                                }
                                             }else{
                                                 jsonObj.put("result", 0);
                                                 jsonObj.put("errcode", SUCCEED);
