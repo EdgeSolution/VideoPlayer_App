@@ -1,8 +1,13 @@
 package com.adv.videoplayer;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -32,45 +37,44 @@ public class FullWindowPlayActivity extends AppCompatActivity {
     private static String TAG = "FullWindowPlayActivity";
     private MQTTWrapper mqttWrapper = null;
     private String mqttClientId = "com.adv.videoplayer";
-    public static String videoPath = "/data/AndroidDM/video/";
-
+    public static String videoPath = Environment.getExternalStorageDirectory().getPath()+"/AndroidManager/video/";
+    private final int REQ_RECORD = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_full_window_play);
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    try {
-                        //String command = "ps |grep mosquitto";
-                        String command = "ps";
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                            String mosquittoIsRunning = getSystemStringProperties(FullWindowPlayActivity.this,"adv.mosquittoIsRunning","false");
-                            if (mosquittoIsRunning != null && !mosquittoIsRunning.isEmpty() && mosquittoIsRunning.equals("true")) {
-                                break;
+        if (isStoragePermissionGranted()) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (true) {
+                        try {
+                            //String command = "ps |grep mosquitto";
+                            String command = "ps";
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                String mosquittoIsRunning = getSystemStringProperties(FullWindowPlayActivity.this, "adv.mosquittoIsRunning", "false");
+                                if (mosquittoIsRunning != null && !mosquittoIsRunning.isEmpty() && mosquittoIsRunning.equals("true")) {
+                                    break;
+                                }
+                                Log.d(TAG, "isServiceRunning ...");
+                            } else {
+                                if (commandIsRuning(command)) {
+                                    break;
+                                }
+                                Log.d(TAG, "ps command ...");
                             }
-                            Log.d(TAG, "isServiceRunning ...");
-                        }else {
-                            if (commandIsRuning(command)) {
-                                break;
-                            }
-                            Log.d(TAG, "ps command ...");
+                            Thread.sleep(3000);
+                        } catch (InterruptedException | IOException e) {
+                            e.printStackTrace();
                         }
-                        Thread.sleep(3000);
-                    } catch (InterruptedException | IOException e) {
-                        e.printStackTrace();
                     }
+                    Log.d(TAG, "connectMqttBroker ...");
+                    connectMqttBroker();
                 }
-                Log.d(TAG, "connectMqttBroker ...");
-                connectMqttBroker();
-            }
-        }).start();
-
-        init();
-
+            }).start();
+            init();
+        }
         //MainActivity.fullWindowActivity = this;
     }
 
@@ -247,6 +251,78 @@ public class FullWindowPlayActivity extends AppCompatActivity {
             ret = def;
         }
         return ret;
+    }
+
+    public boolean isStoragePermissionGranted() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            final Context context = getApplicationContext();
+            int readPermissionCheck = ContextCompat.checkSelfPermission(context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE);
+            int writePermissionCheck = ContextCompat.checkSelfPermission(context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            if (readPermissionCheck == PackageManager.PERMISSION_GRANTED
+                    && writePermissionCheck == PackageManager.PERMISSION_GRANTED) {
+                Log.v(TAG, "Permission is granted");
+                return true;
+            } else {
+                Log.v(TAG, "Permission is revoked");
+                ActivityCompat.requestPermissions(this, new String[]{
+                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_RECORD);
+                return false;
+            }
+        } else { //permission is automatically granted on sdk<23 upon installation
+            Log.v(TAG, "Permission is granted");
+            return true;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_RECORD) {
+            Log.v(TAG, "onRequestPermissionsResult requestCode ： " + requestCode
+                    + " Permission: " + permissions[0] + " was " + grantResults[0]
+                    + " Permission: " + permissions[1] + " was " + grantResults[1]
+            );
+
+            if (permissions[0].equals(Manifest.permission.READ_EXTERNAL_STORAGE) && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                    && permissions[1].equals(Manifest.permission.WRITE_EXTERNAL_STORAGE) && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                //用户同意使用
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        while (true) {
+                            try {
+                                //String command = "ps |grep mosquitto";
+                                String command = "ps";
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                    String mosquittoIsRunning = getSystemStringProperties(FullWindowPlayActivity.this, "adv.mosquittoIsRunning", "false");
+                                    if (mosquittoIsRunning != null && !mosquittoIsRunning.isEmpty() && mosquittoIsRunning.equals("true")) {
+                                        break;
+                                    }
+                                    Log.d(TAG, "isServiceRunning ...");
+                                } else {
+                                    if (commandIsRuning(command)) {
+                                        break;
+                                    }
+                                    Log.d(TAG, "ps command ...");
+                                }
+                                Thread.sleep(3000);
+                            } catch (InterruptedException | IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        Log.d(TAG, "connectMqttBroker ...");
+                        connectMqttBroker();
+                    }
+                }).start();
+                init();
+            } else {
+                //用户不同意，自行处理即可
+                finish();
+            }
+        }
     }
 
 }

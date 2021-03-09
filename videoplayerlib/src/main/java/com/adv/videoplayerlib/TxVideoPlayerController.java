@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.os.CountDownTimer;
+import android.os.Environment;
 import android.support.annotation.DrawableRes;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -81,8 +82,7 @@ public class TxVideoPlayerController
     private int defaultClarityIndex;
 
     private ChangeClarityDialog mClarityDialog;
-    public static String videoPath = "/data/AndroidDM/video/";
-
+    public static String videoPath = Environment.getExternalStorageDirectory().getPath()+"/AndroidManager/video/";
 
     private boolean hasRegisterBatteryReceiver; // 是否已经注册了电池广播
 
