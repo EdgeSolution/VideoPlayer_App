@@ -197,7 +197,7 @@
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="2"
-            android:text="@string/nvplib_title"
+            android:text=""
             android:textColor="@android:color/white"
             android:textSize="14sp"/>
 

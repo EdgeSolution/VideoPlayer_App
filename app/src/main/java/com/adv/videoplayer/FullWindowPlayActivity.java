@@ -89,15 +89,35 @@ public class FullWindowPlayActivity extends AppCompatActivity {
         }
     }
 
-    private void init() {
+    public static void hideBottomUIMenu(View v) {
+        //隐藏虚拟按键，并且全屏
+        if (Build.VERSION.SDK_INT > 11 && Build.VERSION.SDK_INT < 19) { // lower api
+            v.setSystemUiVisibility(View.GONE);
+        } else if (Build.VERSION.SDK_INT >= 19) {
+            //for new api versions.
+            int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY ;
+            v.setSystemUiVisibility(uiOptions);
+        }
+    }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if(hasFocus){
+            hideBottomUIMenu(getWindow().getDecorView());
+        }
+    }
+
+    private void init() {
+        hideBottomUIMenu(getWindow().getDecorView());
         mNiceVideoPlayer = (NiceVideoPlayer) findViewById(R.id.nice_video_player);
         mNiceVideoPlayer.setPlayerType(NiceVideoPlayer.TYPE_IJK); // IjkPlayer or MediaPlayer
         //String videoUrl = "http://8537.vod.myqcloud.com/8537_a58316ea86df11e6a76c67b1ff29c014.f30.mp4?sign=5493ad997e153e8092de307e338b1774&t=5822a346";
         String videoUrl = "local";
         mNiceVideoPlayer.setUp(videoUrl, null);
         TxVideoPlayerController controller = new TxVideoPlayerController(this);
-        controller.setTitle("Advantech");
+        controller.setTitle("");
         //controller.setLenght(0);
         Glide.with(this)
                 .load(R.drawable.img_default)
@@ -106,6 +126,18 @@ public class FullWindowPlayActivity extends AppCompatActivity {
                 .into(controller.imageView());//static png for interface
         mNiceVideoPlayer.setController(controller);
         mNiceVideoPlayer.enterFullScreen();
+
+        NiceVideoPlayer.mVideoList = TxVideoPlayerController.getFilesAllName(videoPath);
+        if (NiceVideoPlayer.mVideoList != null && NiceVideoPlayer.mVideoList.size() != 0) {
+            NiceVideoPlayer.mPlayVideoList = NiceVideoPlayer.mVideoList;
+            if (mNiceVideoPlayer.isIdle()) {
+                mNiceVideoPlayer.start();
+            }
+        }else {
+            String str = "No mp4 file found in " + videoPath + " directory!";
+            Toast.makeText(FullWindowPlayActivity.this, str, Toast.LENGTH_LONG).show();
+        }
+
 
         //MqttV3MessageReceiver.nvp = mNiceVideoPlayer;
         //mNiceVideoPlayer.isPlaying();

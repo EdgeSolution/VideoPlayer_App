@@ -375,11 +375,14 @@ public class TxVideoPlayerController
     public void onClick(View v) {
         if (v == mCenterStart) {
             NiceVideoPlayer.mVideoList = getFilesAllName(videoPath);
-            if (NiceVideoPlayer.mVideoList !=null && NiceVideoPlayer.mVideoList.size() != 0){
+            if (NiceVideoPlayer.mVideoList != null && NiceVideoPlayer.mVideoList.size() != 0) {
                 NiceVideoPlayer.mPlayVideoList = NiceVideoPlayer.mVideoList;
-            }
-            if (mNiceVideoPlayer.isIdle()) {
-                mNiceVideoPlayer.start();
+                if (mNiceVideoPlayer.isIdle()) {
+                    mNiceVideoPlayer.start();
+                }
+            } else {
+                String str = "No mp4 file found in " + videoPath + " directory!";
+                Toast.makeText(mContext, str, Toast.LENGTH_LONG).show();
             }
         } /*else if (v == mBack) {
             if (mNiceVideoPlayer.isFullScreen()) {

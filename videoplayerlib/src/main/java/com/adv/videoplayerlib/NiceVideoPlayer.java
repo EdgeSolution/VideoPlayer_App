@@ -14,6 +14,7 @@ import android.view.TextureView;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -514,6 +515,8 @@ public class NiceVideoPlayer extends FrameLayout
                 try {
                     Log.e(TAG, NiceVideoPlayer.mPlayVideoList.get(global_number) + "    num=" + global_number);
                     mMediaPlayer.setDataSource(NiceVideoPlayer.mPlayVideoList.get((global_number)));
+                    File file = new File(NiceVideoPlayer.mPlayVideoList.get(global_number));
+                    mController.setTitle(file.getName());
                 } finally {
                     numberLock.readLock().unlock(); //释放读锁
                 }
