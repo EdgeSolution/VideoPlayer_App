@@ -5,6 +5,7 @@ import android.util.Log;
 import com.adv.localmqtt.MQTTWrapper;
 import com.adv.localmqtt.MqttV3MessageReceiver;
 import com.adv.localmqtt.Payload;
+import com.adv.videoplayerlib.FileUtil;
 import com.adv.videoplayerlib.NiceVideoPlayer;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
@@ -20,7 +21,6 @@ import java.util.List;
 
 import static com.adv.videoplayerlib.NiceVideoPlayer.numberLock;
 import static com.adv.videoplayer.FullWindowPlayActivity.getNiceVideoPlayerInstance;
-import static com.adv.videoplayer.FullWindowPlayActivity.videoPath;
 
 public class MqttMessageReceiver extends MqttV3MessageReceiver {
     private final String TAG = "MqttMessageReceiver";
@@ -61,21 +61,21 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
 
 
                     nvp = getNiceVideoPlayerInstance();
-                    if(nvp == null){
-                        jsonObj.put("result",1);
-                        jsonObj.put("errcode",NO_VIDEOS_FOUND);
-                        jsonObj.put("data","");
-                    }else {
+                    if (nvp == null) {
+                        jsonObj.put("result", 1);
+                        jsonObj.put("errcode", NO_VIDEOS_FOUND);
+                        jsonObj.put("data", "");
+                    } else {
                         switch (option) {
                             case "1": //get
                                 switch (funcId) {
                                     case "get_volume": //查询当前音量和最大音量
                                         int maxvol = nvp.getMaxVolume();
                                         int curvol = nvp.getVolume();
-                                        if(maxvol == -1 || curvol == -1) {
+                                        if (maxvol == -1 || curvol == -1) {
                                             jsonObj.put("result", 1);
                                             jsonObj.put("errcode", UNKNOWN_REASON);
-                                        }else{
+                                        } else {
                                             jsonObj.put("result", 0);
                                             jsonObj.put("errcode", SUCCEED);
                                             subJsonObj.put("maxvol", maxvol);
@@ -84,12 +84,12 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         Log.d(TAG, "#get_volume#  maxVolume :" + maxvol + "currentVolume" + curvol);
                                         break;
                                     case "get_local_video_list": //查询本地影片列表
-                                        List<String> videolist = FullWindowPlayActivity.getFilesAllName(videoPath);
-                                        if(videolist == null || videolist.size() == 0) {
+                                        List<String> videolist = FullWindowPlayActivity.getFilesAllName(FileUtil.DEFAULT_VIDEO_PATH);
+                                        if (videolist == null || videolist.size() == 0) {
                                             jsonObj.put("result", 0);
                                             jsonObj.put("errcode", SUCCEED);
                                             subJsonObj.put("videolist", "");
-                                        }else{
+                                        } else {
                                             jsonObj.put("result", 0);
                                             jsonObj.put("errcode", SUCCEED);
                                             subJsonObj.put("videolist", videolist);
@@ -101,13 +101,13 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                             jsonObj.put("result", 1);
                                             jsonObj.put("errcode", NO_VIDEOS_FOUND);
                                         } else {
-                                            List<String>  list = new ArrayList<>();
+                                            List<String> list = new ArrayList<>();
                                             numberLock.readLock().lock();
                                             try {
-                                                for(int i = 0; i< NiceVideoPlayer.mPlayVideoList.size();i++) {
-                                                    if(isFileExists(NiceVideoPlayer.mPlayVideoList.get(i).replace(videoPath, ""))) {
+                                                for (int i = 0; i < NiceVideoPlayer.mPlayVideoList.size(); i++) {
+                                                    if (isFileExists(NiceVideoPlayer.mPlayVideoList.get(i).replace(FileUtil.DEFAULT_VIDEO_PATH, ""))) {
                                                         //只把在本地视频源和播放列表都存在的视频上报上去，不从播放列表中清除本地列表不存在的视频
-                                                        list.add(NiceVideoPlayer.mPlayVideoList.get(i).replace(videoPath, ""));
+                                                        list.add(NiceVideoPlayer.mPlayVideoList.get(i).replace(FileUtil.DEFAULT_VIDEO_PATH, ""));
                                                     }
                                                 }
                                             } finally {
@@ -119,35 +119,36 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                             subJsonObj.put("playstatus", nvp.getCurrentState());
                                             Log.d(TAG, "#get_playlist_status#  Local playlists: " + list);
                                         }
-                                        Log.d(TAG, "#get_playlist_status#  Real local playlists: " + NiceVideoPlayer.mPlayVideoList);                                        break;
+                                        Log.d(TAG, "#get_playlist_status#  Real local playlists: " + NiceVideoPlayer.mPlayVideoList);
+                                        break;
                                     case "get_video_info": //获取当前video信息
                                         Log.d(TAG, "Get current video info");
-                                        if(NiceVideoPlayer.mPlayVideoList == null || NiceVideoPlayer.mPlayVideoList.size() == 0){
+                                        if (NiceVideoPlayer.mPlayVideoList == null || NiceVideoPlayer.mPlayVideoList.size() == 0) {
                                             jsonObj.put("result", 1);
                                             jsonObj.put("errcode", PLAYLIST_IS_EMPTY);
-                                        }else {
+                                        } else {
                                             String videoName = "";
                                             numberLock.readLock().lock();
                                             try {
-                                                videoName = NiceVideoPlayer.mPlayVideoList.get(nvp.getVideoNumber()).replace(videoPath, "");
+                                                videoName = NiceVideoPlayer.mPlayVideoList.get(nvp.getVideoNumber()).replace(FileUtil.DEFAULT_VIDEO_PATH, "");
                                             } finally {
                                                 numberLock.readLock().unlock();
                                             }
                                             Long duration = nvp.getDuration();
                                             Long curPosition = nvp.getCurrentPosition();
-                                            if(duration == -1 || curPosition == -1) {
+                                            if (duration == -1 || curPosition == -1) {
                                                 jsonObj.put("result", 1);
                                                 jsonObj.put("errcode", UNKNOWN_REASON);
-                                            }else if(duration == 0 || curPosition == 0) {
-                                                Log.d(TAG,"status: " + nvp.getCurrentState());
-                                                if(nvp.getCurrentState() == NiceVideoPlayer.STATE_ERROR) {
+                                            } else if (duration == 0 || curPosition == 0) {
+                                                Log.d(TAG, "status: " + nvp.getCurrentState());
+                                                if (nvp.getCurrentState() == NiceVideoPlayer.STATE_ERROR) {
                                                     jsonObj.put("result", 1);
                                                     jsonObj.put("errcode", PLAY_ERROR);
                                                     subJsonObj.put("videoname", videoName);
                                                     subJsonObj.put("duration", duration);
                                                     subJsonObj.put("curposition", curPosition);
                                                 }
-                                            }else{
+                                            } else {
                                                 jsonObj.put("result", 0);
                                                 jsonObj.put("errcode", SUCCEED);
                                                 subJsonObj.put("videoname", videoName);
@@ -162,7 +163,7 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         jsonObj.put("errcode", WRONG_FUNCID);
                                         break;
                                 }
-                                jsonObj.put("data",subJsonObj);
+                                jsonObj.put("data", subJsonObj);
                                 break;
                             case "2": //set
                                 switch (funcId) {
@@ -173,12 +174,12 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         Collections.addAll(tmpList, strs);
                                         for (String s : tmpList) {
                                             Log.e(TAG, "tmpList    " + s);
-                                            if(!isFileExists(s)) {
-                                                Log.e(TAG, "File \"" + videoPath + s + "\"" + " does not exist!");
+                                            if (!isFileExists(s)) {
+                                                Log.e(TAG, "File \"" + FileUtil.DEFAULT_VIDEO_PATH + s + "\"" + " does not exist!");
                                                 jsonObj.put("result", 1);
                                                 jsonObj.put("errcode", NO_VIDEOS_FOUND);
 
-                                                jsonObj.put("data","");
+                                                jsonObj.put("data", "");
                                                 response = new Payload(messageId, appName, funcId, Integer.parseInt(option), 2, jsonObj.toString());
                                                 String pubTopic = genRespTopic();
                                                 String pubContent = response.genContent();
@@ -195,8 +196,8 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                             }
                                             NiceVideoPlayer.setVideoNumber(0);
                                             for (int i = 0; i < tmpList.size(); i++) {
-                                                System.out.println(videoPath + tmpList.get(i));
-                                                NiceVideoPlayer.mPlayVideoList.add(i, videoPath + tmpList.get(i));
+                                                System.out.println(FileUtil.DEFAULT_VIDEO_PATH + tmpList.get(i));
+                                                NiceVideoPlayer.mPlayVideoList.add(i, FileUtil.DEFAULT_VIDEO_PATH + tmpList.get(i));
                                             }
                                         } finally {
                                             numberLock.writeLock().unlock();
@@ -232,11 +233,11 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         } catch (InterruptedException e) {
                                             e.printStackTrace();
                                         }
-                                        Log.d(TAG,"status: " + nvp.getCurrentState());
-                                        if(nvp.getCurrentState() != NiceVideoPlayer.STATE_PLAYING) {
+                                        Log.d(TAG, "status: " + nvp.getCurrentState());
+                                        if (nvp.getCurrentState() != NiceVideoPlayer.STATE_PLAYING) {
                                             jsonObj.put("result", 1);
                                             jsonObj.put("errcode", UNKNOWN_REASON);
-                                        }else{
+                                        } else {
                                             jsonObj.put("result", 0);
                                             jsonObj.put("errcode", SUCCEED);
                                         }
@@ -248,12 +249,12 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         Collections.addAll(tmpList1, strs1);
                                         for (String s : tmpList1) {
                                             Log.e(TAG, "tmpList1    " + s);
-                                            if(!isFileExists(s)) {
-                                                Log.e(TAG, "File \"" + videoPath + s + "\"" + " does not exist!");
+                                            if (!isFileExists(s)) {
+                                                Log.e(TAG, "File \"" + FileUtil.DEFAULT_VIDEO_PATH + s + "\"" + " does not exist!");
                                                 jsonObj.put("result", 1);
                                                 jsonObj.put("errcode", NO_VIDEOS_FOUND);
 
-                                                jsonObj.put("data","");
+                                                jsonObj.put("data", "");
                                                 response = new Payload(messageId, appName, funcId, Integer.parseInt(option), 2, jsonObj.toString());
                                                 String pubTopic = genRespTopic();
                                                 String pubContent = response.genContent();
@@ -270,8 +271,8 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                             }
                                             NiceVideoPlayer.setVideoNumber(0);
                                             for (int i = 0; i < tmpList1.size(); i++) {
-                                                System.out.println(videoPath + tmpList1.get(i));
-                                                NiceVideoPlayer.mPlayVideoList.add(i, videoPath + tmpList1.get(i));
+                                                System.out.println(FileUtil.DEFAULT_VIDEO_PATH + tmpList1.get(i));
+                                                NiceVideoPlayer.mPlayVideoList.add(i, FileUtil.DEFAULT_VIDEO_PATH + tmpList1.get(i));
                                             }
                                         } finally {
                                             numberLock.writeLock().unlock();
@@ -301,11 +302,11 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         } catch (InterruptedException e) {
                                             e.printStackTrace();
                                         }
-                                        Log.d(TAG,"status: " + nvp.getCurrentState());
-                                        if(nvp.getCurrentState() != NiceVideoPlayer.STATE_PLAYING) {
+                                        Log.d(TAG, "status: " + nvp.getCurrentState());
+                                        if (nvp.getCurrentState() != NiceVideoPlayer.STATE_PLAYING) {
                                             jsonObj.put("result", 1);
                                             jsonObj.put("errcode", UNKNOWN_REASON);
-                                        }else{
+                                        } else {
                                             jsonObj.put("result", 0);
                                             jsonObj.put("errcode", SUCCEED);
                                         }
@@ -318,11 +319,11 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         } catch (InterruptedException e) {
                                             e.printStackTrace();
                                         }
-                                        Log.d(TAG,"status: " + nvp.getCurrentState());
-                                        if(nvp.getCurrentState() != NiceVideoPlayer.STATE_PAUSED) {
+                                        Log.d(TAG, "status: " + nvp.getCurrentState());
+                                        if (nvp.getCurrentState() != NiceVideoPlayer.STATE_PAUSED) {
                                             jsonObj.put("result", 1);
                                             jsonObj.put("errcode", UNKNOWN_REASON);
-                                        }else{
+                                        } else {
                                             jsonObj.put("result", 0);
                                             jsonObj.put("errcode", SUCCEED);
                                         }
@@ -343,10 +344,10 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         Collections.addAll(tmpList2, strs2);
                                         for (String s : tmpList2) {
                                             Log.e(TAG, "tmpList2    " + s);
-                                            if(!delFile(s)) {
+                                            if (!delFile(s)) {
                                                 jsonObj.put("result", 1);
                                                 jsonObj.put("errcode", UNKNOWN_REASON);
-                                            }else{
+                                            } else {
                                                 jsonObj.put("result", 0);
                                                 jsonObj.put("errcode", SUCCEED);
                                             }
@@ -357,7 +358,7 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
                                         jsonObj.put("errcode", WRONG_FUNCID);
                                         break;
                                 }
-                                jsonObj.put("data","");
+                                jsonObj.put("data", "");
                                 break;
                             default:
                                 break;
@@ -404,7 +405,7 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
     };
 
     private static boolean isFileExists(String fileName) {
-        File file = new File(videoPath);
+        File file = new File(FileUtil.DEFAULT_VIDEO_PATH);
         File[] files = file.listFiles();
         if (files == null) {
             Log.e("error", "empty dir!");
@@ -419,7 +420,7 @@ public class MqttMessageReceiver extends MqttV3MessageReceiver {
     }
 
     private static boolean delFile(String fileName) {
-        File file = new File(videoPath);
+        File file = new File(FileUtil.DEFAULT_VIDEO_PATH);
         File[] files = file.listFiles();
         if (files == null) {
             Log.e("error", "empty dir!");

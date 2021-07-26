@@ -1,16 +1,17 @@
 package com.adv.videoplayerlib;
 
-import android.content.BroadcastReceiver;
+import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.BatteryManager;
+import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.support.annotation.DrawableRes;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -18,7 +19,14 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.obsez.android.lib.filechooser.ChooserDialog;
+
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -33,6 +41,7 @@ public class TxVideoPlayerController
         implements View.OnClickListener,
         SeekBar.OnSeekBarChangeListener,
         ChangeClarityDialog.OnClarityChangedListener {
+    private static final String TAG = "TxVideoPlayerController";
 
     private Context mContext;
     private ImageView mImage;
@@ -44,6 +53,7 @@ public class TxVideoPlayerController
     private LinearLayout mBatteryTime;
     private ImageView mBattery;
     private TextView mTime;
+    private ImageButton mImportVideoFile;
 
     private LinearLayout mBottom;
     private ImageView mRestartPause;
@@ -82,9 +92,51 @@ public class TxVideoPlayerController
     private int defaultClarityIndex;
 
     private ChangeClarityDialog mClarityDialog;
-    public static String videoPath = Environment.getExternalStorageDirectory().getPath()+"/AndroidManager/video/";
+//    public static String videoPath = Environment.getExternalStorageDirectory().getPath()+"/AndroidManager/video/";
 
     private boolean hasRegisterBatteryReceiver; // 是否已经注册了电池广播
+    CopyProgressDialog progressDialog;
+
+    @SuppressLint("HandlerLeak")
+    private Handler handler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case 0:
+                    if (progressDialog == null) {
+                        progressDialog = new CopyProgressDialog(mContext);
+                    }
+                    progressDialog.show();
+                    break;
+                case 1:
+                    int progress = msg.getData().getInt("progress");
+                    progressDialog.setProgress(progress);
+                    progressDialog.setProgressText(progress + "%");
+                    if (progressDialog.isShowing() && progress == 100) {
+                        progressDialog.dismiss();
+
+                        NiceVideoPlayer.mVideoList = getFilesAllName(FileUtil.DEFAULT_VIDEO_PATH);
+                        if (NiceVideoPlayer.mVideoList != null && NiceVideoPlayer.mVideoList.size() != 0) {
+                            NiceVideoPlayer.mPlayVideoList = NiceVideoPlayer.mVideoList;
+
+                            if (mNiceVideoPlayer.isPlaying()) {
+                                mNiceVideoPlayer.jumpToCompleted();
+                                mNiceVideoPlayer.restart();
+                            } else if (mNiceVideoPlayer.isPaused() || mNiceVideoPlayer.isError()) {
+                                mNiceVideoPlayer.restart();
+                            } else {
+                                mNiceVideoPlayer.start();
+                            }
+                        }
+                    }
+                    break;
+                case 2:
+                    String error = msg.getData().getString("error");
+                    Toast.makeText(mContext, "Copy file error : " + error, Toast.LENGTH_LONG).show();
+                    break;
+            }
+        }
+    };
 
     public TxVideoPlayerController(Context context) {
         super(context);
@@ -104,6 +156,8 @@ public class TxVideoPlayerController
         mBatteryTime = (LinearLayout) findViewById(R.id.battery_time);
         mBattery = (ImageView) findViewById(R.id.battery);
         mTime = (TextView) findViewById(R.id.time);
+        mImportVideoFile = (ImageButton) findViewById(R.id.bt_import_videofile);
+
 
         mBottom = (LinearLayout) findViewById(R.id.bottom);
         mRestartPause = (ImageView) findViewById(R.id.restart_or_pause);
@@ -133,6 +187,8 @@ public class TxVideoPlayerController
         mCompleted = (LinearLayout) findViewById(R.id.completed);
         mReplay = (TextView) findViewById(R.id.replay);
         //mShare = (TextView) findViewById(R.id.share);
+
+        mImportVideoFile.setOnClickListener(this);
 
         mCenterStart.setOnClickListener(this);
         //mBack.setOnClickListener(this);
@@ -204,7 +260,7 @@ public class TxVideoPlayerController
     @Override
     protected void onPlayStateChanged(int playState) {
 
-        Log.e("onPlayStateChanged","onPlayStateChanged");
+        Log.e("onPlayStateChanged", "onPlayStateChanged");
         switch (playState) {
             case NiceVideoPlayer.STATE_IDLE:
                 break;
@@ -326,7 +382,6 @@ public class TxVideoPlayerController
             }
         }
     };*/
-
     @Override
     protected void reset() {
         topBottomVisible = false;
@@ -365,24 +420,62 @@ public class TxVideoPlayerController
         List<String> s = new ArrayList<>();
         for (int i = 0; i < files.length; i++) {
             if (files[i].getName().contains(".mp4")) {
-                s.add(videoPath + files[i].getName());
+                s.add(FileUtil.DEFAULT_VIDEO_PATH + files[i].getName());
             }
         }
 
         return s;
     }
+
     @Override
     public void onClick(View v) {
-        if (v == mCenterStart) {
-            NiceVideoPlayer.mVideoList = getFilesAllName(videoPath);
+        if (v == mImportVideoFile) {
+            new ChooserDialog(mContext)
+                    .withResources(R.string.chooser_dialog_title, R.string.chooser_dialog_choose, R.string.chooser_dialog_cancel)
+                    .withFilter(false, false, "mp4")
+                    .withStartFile(Environment.getExternalStorageDirectory().getPath())
+                    .withChosenListener(new ChooserDialog.Result() {
+                        @Override
+                        public void onChoosePath(String dir, File dirFile) {
+                            Log.e(TAG, "Selected file: " + dirFile);
+                            if (FileUtil.createAndroidManagerPath() && FileUtil.recreateVideoPath()) {
+                                File targetFile = new File(FileUtil.DEFAULT_VIDEO_PATH + dirFile.getName());
+                                copyFile(dirFile, targetFile);
+                            } else {
+                                Toast.makeText(mContext, "Import file failed!", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    })
+                    .build()
+                    .show();
+        } else if (v == mCenterStart) {
+            NiceVideoPlayer.mVideoList = getFilesAllName(FileUtil.DEFAULT_VIDEO_PATH);
             if (NiceVideoPlayer.mVideoList != null && NiceVideoPlayer.mVideoList.size() != 0) {
                 NiceVideoPlayer.mPlayVideoList = NiceVideoPlayer.mVideoList;
                 if (mNiceVideoPlayer.isIdle()) {
                     mNiceVideoPlayer.start();
                 }
             } else {
-                String str = "No mp4 file found in " + videoPath + " directory!";
-                Toast.makeText(mContext, str, Toast.LENGTH_LONG).show();
+//                String str = "No mp4 file found in " + FileUtil.DEFAULT_VIDEO_PATH + " directory!";
+//                Toast.makeText(mContext, str, Toast.LENGTH_LONG).show();
+                new ChooserDialog(mContext)
+                        .withResources(com.adv.videoplayerlib.R.string.chooser_dialog_title, com.adv.videoplayerlib.R.string.chooser_dialog_choose, com.adv.videoplayerlib.R.string.chooser_dialog_cancel)
+                        .withFilter(false, false, "mp4")
+                        .withStartFile(Environment.getExternalStorageDirectory().getPath())
+                        .withChosenListener(new ChooserDialog.Result() {
+                            @Override
+                            public void onChoosePath(String dir, File dirFile) {
+                                Log.e(TAG, "Selected file: " + dirFile);
+                                if (FileUtil.createAndroidManagerPath() && FileUtil.recreateVideoPath()) {
+                                    File targetFile = new File(FileUtil.DEFAULT_VIDEO_PATH + dirFile.getName());
+                                    copyFile(dirFile, targetFile);
+                                } else {
+                                    Toast.makeText(mContext, "Import file failed!", Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        })
+                        .build()
+                        .show();
             }
         } /*else if (v == mBack) {
             if (mNiceVideoPlayer.isFullScreen()) {
@@ -557,5 +650,66 @@ public class TxVideoPlayerController
     @Override
     protected void hideChangeBrightness() {
         mChangeBrightness.setVisibility(View.GONE);
+    }
+
+
+    public void copyFile(final File sourcefile, final File targetFile) {
+        handler.sendEmptyMessage(0);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                FileInputStream fileInputStream = null;
+                FileOutputStream fileOutputStream = null;
+                FileChannel fileChannelOutput = null;
+                FileChannel fileChannelInput = null;
+                try {
+                    fileInputStream = new FileInputStream(sourcefile);
+                    fileOutputStream = new FileOutputStream(targetFile); // 新建文件输出流并对它进行缓冲
+
+                    fileChannelOutput = fileOutputStream.getChannel();
+                    fileChannelInput = fileInputStream.getChannel();
+                    long fileTotalSize = fileChannelInput.size();
+                    long fileDownloadSize = 0;
+                    int downloadProgress;
+                    ByteBuffer buffer = ByteBuffer.allocate(4096);
+                    while (fileChannelInput.read(buffer) != -1) {
+                        buffer.flip();
+                        fileDownloadSize += fileChannelOutput.write(buffer);
+                        Log.d(TAG, "FileTotalSize: " + fileTotalSize + " fileDownloadSize: " + fileDownloadSize);
+                        downloadProgress = (int) (fileDownloadSize * 100 / fileTotalSize);
+                        buffer.clear();
+                        Message message = handler.obtainMessage(1);
+                        Bundle bundle = new Bundle();
+                        bundle.putInt("progress", downloadProgress);
+                        message.setData(bundle);
+                        handler.sendMessage(message);
+                    }
+                } catch (IOException e) {
+                    Log.e(TAG, "copyFile error:" + e.getMessage());
+                    Message message = handler.obtainMessage(2);
+                    Bundle bundle = new Bundle();
+                    bundle.putString("error", e.getMessage());
+                    message.setData(bundle);
+                    handler.sendMessage(message);
+                } finally {
+                    try {
+                        if (fileOutputStream != null)
+                            fileOutputStream.close();
+
+                        if (fileInputStream != null)
+                            fileInputStream.close();
+
+                        if (fileChannelOutput != null)
+                            fileChannelOutput.close();
+
+                        if (fileChannelInput != null)
+                            fileChannelInput.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
     }
 }

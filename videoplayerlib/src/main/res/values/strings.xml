@@ -7,8 +7,9 @@
     <string name="nvplib_superclear">Super clear</string>
     <string name="nvplib_sd270">SD 270P</string>
 
-
-
+    <string name="chooser_dialog_title">Select and import video file</string>
+    <string name="chooser_dialog_choose">Import</string>
+    <string name="chooser_dialog_cancel">Cancel</string>
 
 
 </resources>

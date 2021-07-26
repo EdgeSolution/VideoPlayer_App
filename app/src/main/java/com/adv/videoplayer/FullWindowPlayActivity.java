@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -13,20 +12,18 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-
 import com.adv.localmqtt.MQTTWrapper;
-import com.bumptech.glide.Glide;
+import com.adv.videoplayerlib.FileUtil;
 import com.adv.videoplayerlib.NiceVideoPlayer;
 import com.adv.videoplayerlib.NiceVideoPlayerManager;
 import com.adv.videoplayerlib.TxVideoPlayerController;
-import com.adv.videoplayer.R;
+import com.bumptech.glide.Glide;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +34,6 @@ public class FullWindowPlayActivity extends AppCompatActivity {
     private static String TAG = "FullWindowPlayActivity";
     private MQTTWrapper mqttWrapper = null;
     private String mqttClientId = "com.adv.videoplayer";
-    public static String videoPath = Environment.getExternalStorageDirectory().getPath()+"/AndroidManager/video/";
     private final int REQ_RECORD = 100;
 
     @Override
@@ -81,7 +77,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
     private void connectMqttBroker() {
         Log.d(TAG, "--> onCreate");
         mqttWrapper = new MQTTWrapper(mqttClientId);
-        boolean ret = mqttWrapper.connect(new MqttMessageReceiver(mqttWrapper,mqttClientId));
+        boolean ret = mqttWrapper.connect(new MqttMessageReceiver(mqttWrapper, mqttClientId));
         if (ret) {
             Log.d(TAG, "--> mqtt connected");
         } else {
@@ -96,7 +92,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
         } else if (Build.VERSION.SDK_INT >= 19) {
             //for new api versions.
             int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY ;
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
             v.setSystemUiVisibility(uiOptions);
         }
     }
@@ -104,7 +100,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if(hasFocus){
+        if (hasFocus) {
             hideBottomUIMenu(getWindow().getDecorView());
         }
     }
@@ -116,7 +112,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
         //String videoUrl = "http://8537.vod.myqcloud.com/8537_a58316ea86df11e6a76c67b1ff29c014.f30.mp4?sign=5493ad997e153e8092de307e338b1774&t=5822a346";
         String videoUrl = "local";
         mNiceVideoPlayer.setUp(videoUrl, null);
-        TxVideoPlayerController controller = new TxVideoPlayerController(this);
+        final TxVideoPlayerController controller = new TxVideoPlayerController(this);
         controller.setTitle("");
         //controller.setLenght(0);
         Glide.with(this)
@@ -127,23 +123,20 @@ public class FullWindowPlayActivity extends AppCompatActivity {
         mNiceVideoPlayer.setController(controller);
         mNiceVideoPlayer.enterFullScreen();
 
-        NiceVideoPlayer.mVideoList = TxVideoPlayerController.getFilesAllName(videoPath);
+        NiceVideoPlayer.mVideoList = TxVideoPlayerController.getFilesAllName(FileUtil.DEFAULT_VIDEO_PATH);
         if (NiceVideoPlayer.mVideoList != null && NiceVideoPlayer.mVideoList.size() != 0) {
             NiceVideoPlayer.mPlayVideoList = NiceVideoPlayer.mVideoList;
             if (mNiceVideoPlayer.isIdle()) {
                 mNiceVideoPlayer.start();
             }
-        }else {
-            String str = "No mp4 file found in " + videoPath + " directory!";
+        } else {
+            String str = "No mp4 file found in " + FileUtil.DEFAULT_VIDEO_PATH + " directory!";
             Toast.makeText(FullWindowPlayActivity.this, str, Toast.LENGTH_LONG).show();
         }
 
-
-        //MqttV3MessageReceiver.nvp = mNiceVideoPlayer;
-        //mNiceVideoPlayer.isPlaying();
     }
 
-    public  static NiceVideoPlayer getNiceVideoPlayerInstance(){
+    public static NiceVideoPlayer getNiceVideoPlayerInstance() {
 
         return mNiceVideoPlayer;
     }
@@ -156,9 +149,6 @@ public class FullWindowPlayActivity extends AppCompatActivity {
             }
         }*/
 
-    public static String getVideoPath() {
-        return videoPath;
-    }
 
     public static List<String> getFilesAllName(String path) {
         File file = new File(path);
@@ -190,6 +180,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
         Log.e(TAG, "onStart");
         //NiceVideoPlayerManager.instance().releaseNiceVideoPlayer();
     }
+
     @Override
     protected void onRestart() {
         super.onRestart();
@@ -216,7 +207,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
     public void onBackPressed() {
         Log.e(TAG, "onBackPressed");
         //if (NiceVideoPlayerManager.instance().onBackPressd()) return;
-        if(mqttWrapper!=null) {
+        if (mqttWrapper != null) {
             mqttWrapper.destroy();
         }
         NiceVideoPlayerManager.instance().releaseNiceVideoPlayer();
@@ -226,7 +217,7 @@ public class FullWindowPlayActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         Log.e(TAG, "onDestroy");
-        if(mqttWrapper!=null) {
+        if (mqttWrapper != null) {
             mqttWrapper.destroy();
         }
         NiceVideoPlayerManager.instance().releaseNiceVideoPlayer();
@@ -247,16 +238,15 @@ public class FullWindowPlayActivity extends AppCompatActivity {
         }
         try {
             if (proc.waitFor() != 0) {
-                Log.e(TAG,"Command exit value = " + proc.exitValue());
+                Log.e(TAG, "Command exit value = " + proc.exitValue());
                 return false;
             }
             //Log.d(TAG,"StringBuilder: " + sb);
-            if(sb.toString().contains("mosquitto")){
+            if (sb.toString().contains("mosquitto")) {
                 return true;
             }
             return false;
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
             return false;
         }

@@ -55,7 +55,7 @@ dependencies {
     implementation 'tv.danmaku.ijk.media:ijkplayer-armv5:0.8.3'
 //    compile 'tv.danmaku.ijk.media:ijkplayer-arm64:0.8.3'
     implementation 'tv.danmaku.ijk.media:ijkplayer-x86:0.8.3'
-
+    implementation 'com.github.hedzr:android-file-chooser:v1.1.14'
     //compile project(path: ':app')
 //    compile 'tv.danmaku.ijk.media:ijkplayer-x86_64:0.8.3'
 }

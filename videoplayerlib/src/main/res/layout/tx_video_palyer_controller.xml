@@ -201,6 +201,13 @@
             android:textColor="@android:color/white"
             android:textSize="14sp"/>
 
+        <ImageButton
+            android:id="@+id/bt_import_videofile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/import_file"
+            android:text="import"/>
+
         <LinearLayout
             android:id="@+id/battery_time"
             android:layout_width="wrap_content"
